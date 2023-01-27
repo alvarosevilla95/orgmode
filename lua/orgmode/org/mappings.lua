@@ -76,6 +76,17 @@ function OrgMappings:set_tags(tags)
   return headline:set_tags(tags)
 end
 
+---@param tags? string|string[]
+function OrgMappings:set_headline_tags(tags, headline)
+  local current_tags = headline.tags
+
+  if not tags then
+    tags = vim.fn.OrgmodeInput('Tags: ', current_tags, Files.autocomplete_tags)
+  end
+
+  return headline:set_tags(tags)
+end
+
 function OrgMappings:toggle_archive_tag()
   local headline = ts_org.closest_headline()
   local _, current_tags = headline:tags()
@@ -92,9 +103,15 @@ function OrgMappings:toggle_archive_tag()
   return headline:set_tags(utils.tags_to_string(parsed))
 end
 
-function OrgMappings:cycle()
+function OrgMappings:shift_cycle()
+    local line = vim.fn.line('.')
+    vim.cmd([[silent! norm!zM]])
+    OrgMappings:cycle(line)
+end
+
+function OrgMappings:cycle(l)
   local file = Files.get_current_file()
-  local line = vim.fn.line('.')
+  local line = l or vim.fn.line('.')
   if not vim.wo.foldenable then
     vim.wo.foldenable = true
     vim.cmd([[silent! norm!zx]])
@@ -103,10 +120,11 @@ function OrgMappings:cycle()
   if level == 0 then
     return utils.echo_info('No fold')
   end
-  local is_fold_closed = vim.fn.foldclosed(line) ~= -1
-  if is_fold_closed then
-    return vim.cmd([[silent! norm!zo]])
+  local closed = vim.fn.foldclosed(line) ~= -1
+  while vim.fn.foldclosed(line) ~= -1 do
+    vim.cmd([[silent! norm!zo]])
   end
+  if closed then return end
   local section = file.sections_by_line[line]
   if section then
     if not section:has_children() then
@@ -136,8 +154,8 @@ function OrgMappings:cycle()
     return vim.cmd([[silent! norm!zczO]])
   end
 
-  if vim.fn.getline(line):match('^%s*:[^:]*:%s*$') then
-    return vim.cmd([[silent! norm!za]])
+  if vim.fn.getline(line):match('^%s*:[^:]*:.*$') then
+      return vim.cmd([[silent! norm!zc]])
   end
 end
 
